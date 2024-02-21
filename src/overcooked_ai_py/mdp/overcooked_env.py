@@ -459,6 +459,7 @@ class OvercookedEnv(object):
             s_tp1, r_t, done, info = self.step(a_t, a_info_t, display_phi)
             trajectory.append((s_t, a_t, r_t, done, info))
 
+
             if display and self.state.timestep < display_until:
                 self.print_state_transition(a_t, r_t, info, fname, display_phi)
 
