@@ -167,3 +167,4 @@ The raw data used in training is >100 MB, which makes it inconvenient to distrib
 
 If you have issues or questions, don't hesitate to contact [Micah Carroll](https://micahcarroll.github.io) at mdc@berkeley.edu.
 
+# overcooked_ai
