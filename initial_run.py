@@ -31,10 +31,11 @@ env_params= {"horizon": 500}
 mdp_fn = LayoutGenerator.mdp_gen_fn_from_dict(mdp_gen_params, outer_shape= (7,7))
 agent_eval = AgentEvaluator(env_params=env_params, mdp_fn=mdp_fn)
 
-#
-# #need to check why the outer_shape is not in the original mpd_gen_params
-mdp_fn = LayoutGenerator.mdp_gen_fn_from_dict(mdp_gen_params, outer_shape= (7,7))
-agent_eval = AgentEvaluator(env_params=env_params, mdp_fn=mdp_fn)
+# trajectories_greedy_pair = agent_eval.evaluate_human_model_pair(num_games= 1)
+# print("Greedy pair rewards", trajectories_greedy_pair["ep_returns"])
+
+
+
 
 trajectories_random_pair = agent_eval.evaluate_random_pair(num_games=1)
 print("Random pair rewards", trajectories_random_pair["ep_returns"])
