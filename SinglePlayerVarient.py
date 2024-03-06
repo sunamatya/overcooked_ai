@@ -17,7 +17,7 @@ class CustomQAgent(Agent):
     """An agent randomly picks motion actions.
     Note: Does not perform interat actions, unless specified"""
 
-    def __init__(self, mlam):
+    def __init__(self, mlam, is_learning_agent=False):
         #check state space
         self.mlam= mlam
         self.mdp = self.mlam.mdp
@@ -25,14 +25,19 @@ class CustomQAgent(Agent):
         self.valid_position_1 = self.mdp.get_valid_player_positions()
         from itertools import product
         self.valid_positions = []
+        self.valid_actions = []
         for item in product(self.valid_position_1, repeat=2):
             self.valid_positions.append(item)
-        self.Q_table = np.zeros((len(self.valid_positions), Action.NUM_ACTIONS))
+        for item in product(Action.ALL_ACTIONS, repeat=2):
+            self.valid_actions.append(item)
+        #self.Q_table = np.zeros((len(self.valid_positions), Action.NUM_ACTIONS))
+        self.Q_table = np.zeros((len(self.valid_positions), len(self.valid_actions)))
         self.exploration_proba = 0.1#1
         self.exploration_decreasing_decay = 0.001
         self.min_exploration_proba = 0.01
         self.gamma = 0.9
         self.lr = 0.1
+        self.is_learning_agent = is_learning_agent
 
     def action(self, state):
         # return action to maximum Q table in setup
@@ -47,17 +52,30 @@ class CustomQAgent(Agent):
             return Action.sample(action_probs), {"action_probs": action_probs}
 
         else:
-            action = np.argmax(self.Q_table[current_state_idx,:])
+            action_idx = np.argmax(self.Q_table[current_state_idx,:])
             action_probs = 0.5 #check what the action probs is supposed to be
-            return action, {"action_probs": action_probs}
+            # use action_probs for the boltzman rationality
+
+            return Action.ALL_ACTIONS[action_idx], {"action_probs": action_probs}
 
 
     def actions(self, states, agent_indices):
         return (self.action(state) for state in states)
 
+    def update(self, state, action, reward, next_state):
+        #current_state = state.player_positions
+        phy_state= state.player_positions
+        next_phy_state = next_state.player_positions
+        current_state_idx = self.valid_positions.index(phy_state)
+        next_state_idx = self.valid_positions.index(next_phy_state)
+        action_idx = self.valid_actions.index(action)
+        #check is action or action_index
+        self.Q_table[current_state_idx, action] = (1 - self.lr) * self.Q_table[current_state_idx, action_idx] + self.lr * (
+                    reward + self.gamma * max(self.Q_table[next_state_idx, :]))
+
 
 # agent_pair = AgentPair(CustomRandomAgent(), CustomRandomAgent())
 
-single_q_agent_pair= AgentPair(CustomQAgent(agent_eval.env.mlam), StayAgent())
+single_q_agent_pair= AgentPair(CustomQAgent(agent_eval.env.mlam, is_learning_agent=True), StayAgent())
 trajectories_single_greedy_agent = agent_eval.evaluate_agent_pair(single_q_agent_pair, num_games=1)
 print("Random pair rewards", trajectories_single_greedy_agent["ep_returns"])

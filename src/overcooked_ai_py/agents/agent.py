@@ -16,6 +16,7 @@ class Agent(object):
 
     def __init__(self):
         self.reset()
+        self.is_learning_agent = False
 
     def action(self, state):
         """
@@ -263,11 +264,13 @@ class RandomAgent(Agent):
 
 class StayAgent(Agent):
     def __init__(self, sim_threads=None):
+        super().__init__()
         self.sim_threads = sim_threads
 
     def action(self, state):
         a = Action.STAY
         return a, {}
+
 
     def direct_action(self, obs):
         return [Action.ACTION_TO_INDEX[Action.STAY]] * self.sim_threads

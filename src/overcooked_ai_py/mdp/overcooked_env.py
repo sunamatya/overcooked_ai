@@ -457,7 +457,12 @@ class OvercookedEnv(object):
             assert all(type(a_info) is dict for a_info in a_info_t)
 
             s_tp1, r_t, done, info = self.step(a_t, a_info_t, display_phi)
+
             trajectory.append((s_t, a_t, r_t, done, info))
+            for ags in agent_pair.agents:
+                if ags.is_learning_agent:
+                    ags.update(s_t,a_t,r_t,s_tp1)
+
 
 
             if display and self.state.timestep < display_until:

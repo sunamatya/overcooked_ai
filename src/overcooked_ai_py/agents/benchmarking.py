@@ -46,6 +46,7 @@ class AgentEvaluator(object):
         force_compute=False,
         mlam_params=NO_COUNTERS_PARAMS,
         debug=False,
+        learning=False
     ):
         """
         env_params (dict): params for creation of an OvercookedEnv
@@ -61,6 +62,7 @@ class AgentEvaluator(object):
         self.mdp_fn = mdp_fn
         self.env = OvercookedEnv(self.mdp_fn, **env_params)
         self.force_compute = force_compute
+        self.learning= learning
 
     @staticmethod
     def from_mdp_params_infinite(
@@ -576,3 +578,5 @@ class AgentEvaluator(object):
     def events_visualization(trajs, traj_index):
         # TODO
         pass
+
+
