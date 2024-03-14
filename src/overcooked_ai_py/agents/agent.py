@@ -17,6 +17,9 @@ class Agent(object):
     def __init__(self):
         self.reset()
         self.is_learning_agent = False
+        self.save_agent_file= False
+        self.is_learning_agent= False
+        self.load_learned_agent= False
 
     def action(self, state):
         """
@@ -97,6 +100,19 @@ class Agent(object):
             with open(path, "rb") as f:
                 obj = dill.load(f)
             return obj
+
+    def save_agent(self):
+        '''
+        This is to save the weights of the agent. Either breakdown the Q table and load the Q table.
+        '''
+        return NotImplementedError()
+
+    def load_agent(self, path):
+        '''
+        This is to load agent directly for path. Depends on each implementation
+        '''
+        return NotImplementedError()
+
 
 
 class AgentGroup(object):

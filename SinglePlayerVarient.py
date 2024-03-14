@@ -3,10 +3,18 @@ from overcooked_ai_py.mdp.actions import Action, Direction
 from overcooked_ai_py.agents.benchmarking import AgentEvaluator, LayoutGenerator
 from overcooked_ai_py.agents.agent import Agent, AgentPair,StayAgent, RandomAgent, GreedyHumanModel
 from overcooked_ai_py.mdp.overcooked_mdp import OvercookedGridworld
+import pickle
+import datetime
+import os
+from tempfile import TemporaryFile
 
-mdp_gen_params = {"layout_name": 'five_by_five'}
+
+
+#mdp_gen_params = {"layout_name": 'five_by_five'}
+mdp_gen_params = {"layout_name": 'cramped_room_one_onion'}
+#mdp_gen_params = {"layout_name": 'sanity_check'}
 mdp_fn = LayoutGenerator.mdp_gen_fn_from_dict(mdp_gen_params)
-env_params = {"horizon": 100}
+env_params = {"horizon": 100000}
 agent_eval = AgentEvaluator(env_params=env_params, mdp_fn=mdp_fn)
 
 
@@ -17,7 +25,7 @@ class CustomQAgent(Agent):
     """An agent randomly picks motion actions.
     Note: Does not perform interat actions, unless specified"""
 
-    def __init__(self, mlam, is_learning_agent=False):
+    def __init__(self, mlam, path_file= None, is_learning_agent=False, save_agent_file=False, load_learned_agent= False):
         #check state space
         self.mlam= mlam
         self.mdp = self.mlam.mdp
@@ -32,12 +40,29 @@ class CustomQAgent(Agent):
             self.valid_actions.append(item)
         #self.Q_table = np.zeros((len(self.valid_positions), Action.NUM_ACTIONS))
         self.Q_table = np.zeros((len(self.valid_positions), len(self.valid_actions)))
-        self.exploration_proba = 0.1#1
+        self.exploration_proba = 0.9
         self.exploration_decreasing_decay = 0.001
         self.min_exploration_proba = 0.01
         self.gamma = 0.9
         self.lr = 0.1
         self.is_learning_agent = is_learning_agent
+        self.save_agent_file=save_agent_file
+        self.load_learned_agent= load_learned_agent
+        if self.save_agent_file:
+            #use syspath, name and time
+            output_name = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
+            os.makedirs("test/single_agent/%s" % output_name)
+            # self.sim_out = open("./sim_outputs/%s/output.pkl" % output_name, "wb")
+
+            #
+            # if self.capture:
+            #     self.output_dir = "./sim_outputs/%s/video/" % output_name
+            #     os.makedirs(self.output_dir)
+
+
+            self.learned_agent_path = "test/single_agent/%s" % output_name
+        elif self.load_learned_agent:
+            self.learned_agent_path = path_file
 
     def action(self, state):
         # return action to maximum Q table in setup
@@ -53,29 +78,90 @@ class CustomQAgent(Agent):
 
         else:
             action_idx = np.argmax(self.Q_table[current_state_idx,:])
-            action_probs = 0.5 #check what the action probs is supposed to be
+
+
+            action_probs = 1 #check what the action probs is supposed to be
             # use action_probs for the boltzman rationality
 
-            return Action.ALL_ACTIONS[action_idx], {"action_probs": action_probs}
+            #print("q learning agent",  current_state, self.valid_actions[action_idx][0])
+            return self.valid_actions[action_idx][0], {"action_probs": action_probs}
+            #return Action.ALL_ACTIONS[action_idx], {"action_probs": action_probs}
 
 
     def actions(self, states, agent_indices):
         return (self.action(state) for state in states)
 
-    def update(self, state, action, reward, next_state):
+    def update(self, state, action, reward, next_state, episode_length):
         #current_state = state.player_positions
         phy_state= state.player_positions
         next_phy_state = next_state.player_positions
         current_state_idx = self.valid_positions.index(phy_state)
         next_state_idx = self.valid_positions.index(next_phy_state)
         action_idx = self.valid_actions.index(action)
+        #print(action_idx)
         #check is action or action_index
-        self.Q_table[current_state_idx, action] = (1 - self.lr) * self.Q_table[current_state_idx, action_idx] + self.lr * (
+        self.Q_table[current_state_idx, action_idx] = (1 - self.lr) * self.Q_table[current_state_idx, action_idx] + self.lr * (
                     reward + self.gamma * max(self.Q_table[next_state_idx, :]))
+
+        self.exploration_proba = max(self.min_exploration_proba, np.exp(self.exploration_decreasing_decay*episode_length))
+        #print(episode_length)
+    # def save_agent(self):
+    #     qtable = TemporaryFile()
+    #     np.save(f"%s/qtable.npy", self.learned_agent_path, self.Q_table)
+    #     #check how to save agent
+    #
+    # def load_agent(self,npy_path):
+    #     #self.Q_table = np.load(f"qtables/{i}-qtable.npy")
+    #     self.Q_table = np.load(npy_path)
+
+    def save_agent(self, filename):
+        """
+        Save the Q-table to a file.
+
+        Args:
+            filename (str): The name of the file to save the Q-table to.
+
+        Returns:
+            None
+        """
+        #filename = os.path.join(os.path.dirname(__file__), filename)
+        filename = os.path.join(self.learned_agent_path, filename)
+        with open(filename, 'wb') as f:
+            pickle.dump(self.Q_table, f)
+
+    def load_agent(self, filename):
+        """
+        Load the Q-table from a file.
+
+        Args:
+            filename (str): The name of the file to load the Q-table from.
+
+        Returns:
+            None
+        """
+        filename = os.path.join(os.path.dirname(__file__), filename)
+        with open(filename, 'rb') as f:
+            self.q_table = pickle.load(f)
+
+
+
 
 
 # agent_pair = AgentPair(CustomRandomAgent(), CustomRandomAgent())
+# This is for training agent
+# single_q_agent_pair= AgentPair(CustomQAgent(agent_eval.env.mlam, is_learning_agent=True, save_agent_file=True), StayAgent())
+# trajectories_single_greedy_agent = agent_eval.evaluate_agent_pair(single_q_agent_pair, num_games=1)
+# print("Random pair rewards", trajectories_single_greedy_agent["ep_returns"])
 
-single_q_agent_pair= AgentPair(CustomQAgent(agent_eval.env.mlam, is_learning_agent=True), StayAgent())
+#This is for testing agent
+#TODO:check if you can access the file directly from above
+ptfp= "/home/rise/PycharmProjects/overcooked_ai/test/single_agent/2024-03-14-14-36-55"# post training file path
+
+single_q_agent_pair= AgentPair(CustomQAgent(agent_eval.env.mlam, path_file=ptfp, load_learned_agent=True), StayAgent())
 trajectories_single_greedy_agent = agent_eval.evaluate_agent_pair(single_q_agent_pair, num_games=1)
 print("Random pair rewards", trajectories_single_greedy_agent["ep_returns"])
+
+#TODO:check if you are able to get reward as well as visualization
+
+#SAVE the environment available in Agents.py
+#Test agent in the evaluate_agent_pair

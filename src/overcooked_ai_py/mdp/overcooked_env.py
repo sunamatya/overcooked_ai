@@ -7,6 +7,7 @@ import gymnasium
 import numpy as np
 import pygame
 import tqdm
+import os
 
 from overcooked_ai_py.mdp.actions import Action
 from overcooked_ai_py.mdp.overcooked_mdp import (
@@ -447,6 +448,14 @@ class OvercookedEnv(object):
             fname = dir + "/roll_out_" + str(time.time()) + ".txt"
             with open(fname, "w+", encoding='utf-8') as f:
                 print(self, file=f)
+        for ags in agent_pair.agents:
+            if ags.load_learned_agent:
+                #if os.path.exists(os.path.join(os.path.dirname(__file__), 'q_table.pkl')):
+                if os.path.exists(os.path.join(ags.learned_agent_path, 'q_table.pkl')):
+                    filename = os.path.join(ags.learned_agent_path, 'q_table.pkl')
+                    ags.load_agent(filename)
+                    #ags.load_agent('q_table.pkl')
+
         while not done:
             s_t = self.state
 
@@ -461,7 +470,7 @@ class OvercookedEnv(object):
             trajectory.append((s_t, a_t, r_t, done, info))
             for ags in agent_pair.agents:
                 if ags.is_learning_agent:
-                    ags.update(s_t,a_t,r_t,s_tp1)
+                    ags.update(s_t,a_t,r_t,s_tp1, self.state.timestep)
 
 
 
@@ -471,6 +480,10 @@ class OvercookedEnv(object):
         assert len(trajectory) == self.state.timestep, "{} vs {}".format(
             len(trajectory), self.state.timestep
         )
+
+        for ags in agent_pair.agents:
+            if ags.is_learning_agent:
+                ags.save_agent('q_table.pkl')
 
         # Add final state
         if include_final_state:
@@ -485,6 +498,7 @@ class OvercookedEnv(object):
         return (
             np.array(trajectory, dtype=object),
             self.state.timestep,
+
             total_sparse,
             total_shaped,
         )
@@ -562,8 +576,8 @@ class OvercookedEnv(object):
             # we do not need to regenerate MDP if we are trying to generate a series of rollouts using the same MDP
             # Basically, the FALSE here means that we are using the same layout and starting positions
             # (if regen_mdp == True, resetting will call mdp_gen_fn to generate another layout & starting position)
-            self.reset(regen_mdp=False)
-            agent_pair.reset()
+            self.reset(regen_mdp=False) # this resets the environment
+            agent_pair.reset() # this resets the agent_pair
 
             if info:
                 mu, se = mean_and_std_err(trajectories["ep_returns"])
